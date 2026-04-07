@@ -133,51 +133,31 @@ Usa "high" si la clasificación es obvia.`;
 }
 
 
-// ── Audio context global (debe desbloquearse con toque del usuario) ──────────
-let _audioCtx = null;
-function getAudioCtx() {
-  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (_audioCtx.state === "suspended") _audioCtx.resume();
-  return _audioCtx;
+// ── Sonido de alerta con HTML Audio (compatible iOS Safari) ──────────────────
+let _alarmAudio = null;
+function getAlarmAudio() {
+  if (!_alarmAudio) {
+    _alarmAudio = new Audio("/alarm.wav");
+    _alarmAudio.preload = "auto";
+  }
+  return _alarmAudio;
 }
 
 function unlockAudio() {
   try {
-    const ctx = getAudioCtx();
-    // Tono silencioso para desbloquear iOS
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.001, ctx.currentTime);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.01);
+    const a = getAlarmAudio();
+    a.volume = 0.001;
+    a.play().then(() => { a.pause(); a.currentTime = 0; a.volume = 1; }).catch(() => {});
   } catch {}
 }
 
-// ── Sonido de alerta ──────────────────────────────────────────────────────────
 function playAlertSound() {
   try {
-    const ctx = getAudioCtx();
-    const play = (freq, start, dur) => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
-      gain.gain.setValueAtTime(0.7, ctx.currentTime + start);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
-      osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + dur + 0.05);
-    };
-    play(880, 0.0,  0.2);
-    play(660, 0.25, 0.2);
-    play(880, 0.5,  0.2);
-    play(660, 0.75, 0.2);
-    play(1047, 1.0, 0.4);
+    const a = getAlarmAudio();
+    a.currentTime = 0;
+    a.volume = 1;
+    a.play().catch(e => console.log("Audio error:", e));
   } catch(e) { console.log("Audio error:", e); }
-  // Vibración en móvil
   try { if (navigator.vibrate) navigator.vibrate([400, 150, 400, 150, 600]); } catch {}
 }
 
