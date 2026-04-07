@@ -133,31 +133,52 @@ Usa "high" si la clasificación es obvia.`;
 }
 
 
+// ── Audio context global (debe desbloquearse con toque del usuario) ──────────
+let _audioCtx = null;
+function getAudioCtx() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (_audioCtx.state === "suspended") _audioCtx.resume();
+  return _audioCtx;
+}
+
+function unlockAudio() {
+  try {
+    const ctx = getAudioCtx();
+    // Tono silencioso para desbloquear iOS
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.001, ctx.currentTime);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.01);
+  } catch {}
+}
+
 // ── Sonido de alerta ──────────────────────────────────────────────────────────
 function playAlertSound() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const play = (freq, start, dur, type = "sine") => {
+    const ctx = getAudioCtx();
+    const play = (freq, start, dur) => {
       const osc  = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.type = type;
+      osc.type = "sine";
       osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
-      gain.gain.setValueAtTime(0.6, ctx.currentTime + start);
+      gain.gain.setValueAtTime(0.7, ctx.currentTime + start);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
       osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + dur);
+      osc.stop(ctx.currentTime + start + dur + 0.05);
     };
-    // Melodía de 3 tonos llamativos
-    play(880, 0.0,  0.18);
-    play(660, 0.22, 0.18);
-    play(880, 0.44, 0.18);
-    play(660, 0.66, 0.18);
-    play(880, 0.88, 0.35);
-  } catch {}
+    play(880, 0.0,  0.2);
+    play(660, 0.25, 0.2);
+    play(880, 0.5,  0.2);
+    play(660, 0.75, 0.2);
+    play(1047, 1.0, 0.4);
+  } catch(e) { console.log("Audio error:", e); }
   // Vibración en móvil
-  try { if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 500]); } catch {}
+  try { if (navigator.vibrate) navigator.vibrate([400, 150, 400, 150, 600]); } catch {}
 }
 
 let nextId = Date.now();
@@ -173,6 +194,15 @@ export default function App() {
   const [pendingAlert,     setPendingAlert]     = useState(null);
   const [countdown,        setCountdown]        = useState(null);
   const timerRef = useRef(null);
+  const audioUnlocked = useRef(false);
+
+  // Desbloquear audio iOS en el primer toque del usuario
+  const handleFirstTouch = () => {
+    if (!audioUnlocked.current) {
+      unlockAudio();
+      audioUnlocked.current = true;
+    }
+  };
 
   // Estado de clasificación IA
   const [classifying,      setClassifying]      = useState(false);  // spinner
@@ -236,7 +266,7 @@ export default function App() {
   const progress           = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 
   return (
-    <div style={{ ...S.root, background: session.shopMode ? "linear-gradient(135deg,#fff8e1,#e8f5e9)" : "linear-gradient(135deg,#f8f0ff,#e0f7fa)" }}>
+    <div style={{ ...S.root, background: session.shopMode ? "linear-gradient(135deg,#fff8e1,#e8f5e9)" : "linear-gradient(135deg,#f8f0ff,#e0f7fa)" }} onTouchStart={handleFirstTouch} onClick={handleFirstTouch}>
 
       {/* ── Modal: Editar categoría ── */}
       {editCategory && (
