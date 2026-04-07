@@ -137,7 +137,7 @@ Usa "high" si la clasificación es obvia.`;
 let _alarmAudio = null;
 function getAlarmAudio() {
   if (!_alarmAudio) {
-    _alarmAudio = new Audio("/alarm.wav");
+    _alarmAudio = new Audio("/alarma.wav");
     _alarmAudio.preload = "auto";
   }
   return _alarmAudio;
@@ -156,9 +156,19 @@ function playAlertSound() {
     const a = getAlarmAudio();
     a.currentTime = 0;
     a.volume = 1;
+    a.loop = true;  // Suena en loop hasta que se detenga
     a.play().catch(e => console.log("Audio error:", e));
   } catch(e) { console.log("Audio error:", e); }
   try { if (navigator.vibrate) navigator.vibrate([400, 150, 400, 150, 600]); } catch {}
+}
+
+function stopAlertSound() {
+  try {
+    const a = getAlarmAudio();
+    a.loop = false;
+    a.pause();
+    a.currentTime = 0;
+  } catch {}
 }
 
 let nextId = Date.now();
@@ -235,8 +245,8 @@ export default function App() {
   const clearAll    = ()   => { if (window.confirm("¿Vaciar toda la lista?")) setItems([]); };
 
   const startShopMode = () => { const m = parseInt(alertMinutesInput, 10); if (!m || m < 1) return; setSession({ shopMode: true, alertMinutes: m, lastActivity: Date.now() }); setShowShopSetup(false); setFilter("pending"); };
-  const stopShopMode  = () => { setSession({ shopMode: false, alertMinutes: session.alertMinutes, lastActivity: null }); setPendingAlert(null); setCountdown(null); setFilter("all"); };
-  const resetActivityTimer = () => { setSession(s => ({ ...s, lastActivity: Date.now() })); setPendingAlert(null); };
+  const stopShopMode  = () => { stopAlertSound(); setSession({ shopMode: false, alertMinutes: session.alertMinutes, lastActivity: null }); setPendingAlert(null); setCountdown(null); setFilter("all"); };
+  const resetActivityTimer = () => { stopAlertSound(); setSession(s => ({ ...s, lastActivity: Date.now() })); setPendingAlert(null); };
 
   const filteredItems      = filter === "all" ? items : filter === "pending" ? items.filter(i => !i.done) : items.filter(i => i.done);
   const groupedByCategory  = CATEGORIES.map(cat => ({ ...cat, items: filteredItems.filter(i => i.category === cat.id) })).filter(g => g.items.length > 0);
